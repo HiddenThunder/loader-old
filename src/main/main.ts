@@ -12,6 +12,7 @@ import path from 'path';
 import os from 'os';
 import { globSource } from 'ipfs-core';
 import * as Ctl from 'ipfsd-ctl';
+import axios from 'axios';
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
@@ -37,6 +38,10 @@ const server = Ctl.createServer(
     },
   }
 );
+
+const pinataApiKey = '728c38d744db8e640cc1';
+const pinataSecretApiKey =
+  'cdfbb3a6799eec8b25bff170666c32921878a4a4c9745befef281e33188b3bd6';
 
 //* don't know what this is
 //* it's from react-electron boilerplate
@@ -93,25 +98,6 @@ const createWindow = async () => {
     //* starting server for go-ipfs as subprocess
     await server.start();
     //* controller for IPFS API
-
-    // const factory = Ctl.createFactory({
-    //   ipfsHttpModule: require('ipfs-http-client'),
-    //   ipfsBin: require('go-ipfs').path(),
-    //   remote: false,
-    //   endpoint: `http://localhost:${port}`, // or you can set process.env.IPFSD_CTL_SERVER to http://localhost:9090
-    //   ipfsOptions: {
-    //     repo: path.join(os.homedir(), '.buildnode'),
-    //     config: {
-    //       Datastore: {
-    //         GCPeriod: '1h',
-    //         StorageGCWatermark: 99,
-    //         //* max storage
-    //         StorageMax: '350GB',
-    //       },
-    //     },
-    //   },
-    // });
-    // ipfsd = await factory.spawn();
 
     ipfsd = await Ctl.createController({
       remote: false,
@@ -213,6 +199,24 @@ const getAllFiles = function (dirPath: string, _arrayOfFiles: Array<string>) {
   return arrayOfFiles;
 };
 
+const pinByHash = async (hashToPin: string) => {
+  const url = `https://api.pinata.cloud/pinning/pinByHash`;
+  const body = {
+    hashToPin,
+    hostNodes: [
+      '/ip4/hostNode1ExternalIP/tcp/4001/ipfs/hostNode1PeerId',
+      '/ip4/hostNode2ExternalIP/tcp/4001/ipfs/hostNode2PeerId',
+    ],
+  };
+  const response = await axios.post(url, body, {
+    headers: {
+      pinata_api_key: pinataApiKey,
+      pinata_secret_api_key: pinataSecretApiKey,
+    },
+  });
+  return response;
+};
+
 ipcMain.on('open-select-folder-dialog', async (event) => {
   try {
     const folder = await dialog.showOpenDialog(mainWindow, {
@@ -251,7 +255,9 @@ ipcMain.on('open-select-folder-dialog', async (event) => {
     await ipfsNode.files.cp(cid, `/${folderName}`, { parents: true });
     console.log(uploadedSize);
     console.log(folder);
-    event.returnValue = cid.toString();
+    const stringCid = cid.toString();
+    pinByHash(stringCid);
+    event.returnValue = stringCid;
   } catch (err) {
     console.log(err);
     log.warn(err);
@@ -276,7 +282,9 @@ ipcMain.on('open-select-file-dialog', async (event) => {
     await ipfsNode.files.cp(addedFile.cid, `/${fileName}`, { parents: true });
     console.log(file);
     console.log(addedFile.cid.toString());
-    event.returnValue = addedFile.cid.toString();
+    const stringCid = addedFile.cid.toString();
+    pinByHash(stringCid);
+    event.returnValue = stringCid;
   } catch (err) {
     console.log(err);
     log.warn(err);
