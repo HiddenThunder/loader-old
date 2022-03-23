@@ -115,26 +115,29 @@ const createWindow = async () => {
 
     ipfsd = await Ctl.createController({
       remote: false,
+      test: false,
+      disposable: false,
       ipfsHttpModule: require('ipfs-http-client'),
-      ipfsBin: require('go-ipfs').path(),
+      ipfsBin: require('go-ipfs')
+        .path()
+        .replace('app.asar', 'app.asar.unpacked'),
       endpoint: `http://localhost:${port}`,
       ipfsOptions: {
         repo: path.join(os.homedir(), '.buildnode'),
         config: {
           Datastore: {
             GCPeriod: '1h',
-            StorageGCWatermark: 99,
-            //* max storage
+            StorageGCWatermark: `99`,
             StorageMax: '350GB',
           },
         },
       },
     });
-
-    const stats = await ipfsd.api.repo.stat();
-    console.log(stats);
+    await ipfsd.init();
+    await ipfsd.start();
 
     ipfsNode = ipfsd.api;
+    await ipfsNode.id();
     //* Create local folder for MFS
     try {
       await ipfsNode.files.mkdir('/');
@@ -154,6 +157,7 @@ const createWindow = async () => {
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: true,
     },
   });
 
@@ -250,6 +254,7 @@ ipcMain.on('open-select-folder-dialog', async (event) => {
     event.returnValue = cid.toString();
   } catch (err) {
     console.log(err);
+    log.warn(err);
   }
 });
 
@@ -274,6 +279,7 @@ ipcMain.on('open-select-file-dialog', async (event) => {
     event.returnValue = addedFile.cid.toString();
   } catch (err) {
     console.log(err);
+    log.warn(err);
   }
 });
 
