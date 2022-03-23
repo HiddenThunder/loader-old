@@ -149,7 +149,7 @@ const createWindow = async () => {
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
@@ -261,6 +261,7 @@ ipcMain.on('open-select-folder-dialog', async (event) => {
   } catch (err) {
     console.log(err);
     log.warn(err);
+    event.returnValue = -1;
   }
 });
 
@@ -288,6 +289,7 @@ ipcMain.on('open-select-file-dialog', async (event) => {
   } catch (err) {
     console.log(err);
     log.warn(err);
+    event.returnValue = -1;
   }
 });
 

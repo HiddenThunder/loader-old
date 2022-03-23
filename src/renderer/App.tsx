@@ -1,7 +1,7 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import icon from '../../assets/buildship.png';
+import icon from '../../assets/logo.svg';
 import Icon from './Icon';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
@@ -26,12 +26,22 @@ const Hello = () => {
 
   const handleFile = async () => {
     const result = ipc.sendSync('open-select-file-dialog');
+    if (result === -1) {
+      setPercents('Something went wrong. Try again');
+      return;
+    }
+    setPercents('');
     const Locals = await handleLocals();
     setLocals(Locals);
   };
 
   const handleFolder = async () => {
     const result = ipc.sendSync('open-select-folder-dialog');
+    if (result === -1) {
+      setPercents('Something went wrong. Try again');
+      return;
+    }
+    setPercents('');
     const Locals = await handleLocals();
     setLocals(Locals);
   };
