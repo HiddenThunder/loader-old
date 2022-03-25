@@ -89,7 +89,7 @@ const createWindow = async () => {
 
   const RESOURCES_PATH = app.isPackaged
     ? path.join(process.resourcesPath, 'assets')
-    : path.join(__dirname, '../../assets');
+    : path.join(__dirname, '..', '..', 'assets');
 
   const getAssetPath = (...paths: string[]): string => {
     return path.join(RESOURCES_PATH, ...paths);
@@ -102,7 +102,7 @@ const createWindow = async () => {
     ipfsd = await Ctl.createController({
       remote: false,
       test: false,
-      disposable: false,
+      // disposable: false,
       ipfsHttpModule: require('ipfs-http-client'),
       ipfsBin: require('go-ipfs')
         .path()
@@ -119,8 +119,8 @@ const createWindow = async () => {
         },
       },
     });
-    await ipfsd.init();
-    await ipfsd.start();
+    // await ipfsd.init();
+    // await ipfsd.start();
 
     ipfsNode = ipfsd.api;
     await ipfsNode.id();
@@ -227,8 +227,7 @@ ipcMain.on('open-select-folder-dialog', async (event) => {
     let cid = '';
     let prevSize = 0n;
     const pathToFolder = folder.filePaths[0];
-    const splitted = pathToFolder.split('/');
-    const folderName = splitted[splitted.length - 1];
+    const folderName = path.basename(pathToFolder);
     for await (const currentFile of ipfsNode.addAll(
       globSource(pathToFolder, '**/*'),
       {
@@ -271,8 +270,7 @@ ipcMain.on('open-select-file-dialog', async (event) => {
       properties: ['openFile'],
     });
     const pathToFile = file.filePaths[0];
-    const splitted = pathToFile.split('/');
-    const fileName = splitted[splitted.length - 1];
+    const fileName = path.basename(pathToFile);
     const readStream = fs.createReadStream(pathToFile);
     const addedFile = await ipfsNode.add(readStream, {
       pin: true,
