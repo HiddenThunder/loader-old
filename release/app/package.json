@@ -18,7 +18,6 @@
     "ipfs-http-client": "^56.0.1",
     "ipfsd-ctl": "^10.0.6",
     "ipfs-core": "^0.14.1",
-    "ipfs": "^0.62.1",
     "cids": "^1.1.9",
     "axios": "^0.26.1"
   },
