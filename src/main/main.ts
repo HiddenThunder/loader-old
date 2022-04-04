@@ -10,14 +10,16 @@
  */
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 import { globSource } from 'ipfs-core';
 import * as Ctl from 'ipfsd-ctl';
 import axios from 'axios';
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
-import fs from 'fs';
+import { startNode, stopNode } from './network';
 import MenuBuilder from './menu';
+import { pinataApiKey, pinataSecretApiKey } from './secret';
 
 import { resolveHtmlPath } from './util';
 
@@ -39,10 +41,6 @@ const server = Ctl.createServer(
   }
 );
 
-const pinataApiKey = '728c38d744db8e640cc1';
-const pinataSecretApiKey =
-  'cdfbb3a6799eec8b25bff170666c32921878a4a4c9745befef281e33188b3bd6';
-
 //* don't know what this is
 //* it's from react-electron boilerplate
 export default class AppUpdater {
@@ -55,7 +53,6 @@ export default class AppUpdater {
 
 let mainWindow: BrowserWindow;
 let ipfsNode: any;
-let ipfsd: any;
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -94,46 +91,19 @@ const createWindow = async () => {
   const getAssetPath = (...paths: string[]): string => {
     return path.join(RESOURCES_PATH, ...paths);
   };
+
+  ipfsNode = await startNode();
+  console.log(await ipfsNode.id());
+  console.log((await ipfsNode.id()).addresses[3].toString());
+  console.log((await ipfsNode.id()).addresses[2].toString());
+  console.log((await ipfsNode.id()).addresses[4].toString());
+  console.log(await ipfsNode.repo.stat());
+  //* Create local folder for MFS
   try {
-    //* starting server for go-ipfs as subprocess
-    await server.start();
-    //* controller for IPFS API
-
-    ipfsd = await Ctl.createController({
-      remote: false,
-      test: false,
-      // disposable: false,
-      ipfsHttpModule: require('ipfs-http-client'),
-      ipfsBin: require('go-ipfs')
-        .path()
-        .replace('app.asar', 'app.asar.unpacked'),
-      endpoint: `http://localhost:${port}`,
-      ipfsOptions: {
-        repo: path.join(os.homedir(), '.buildnode'),
-        config: {
-          Datastore: {
-            GCPeriod: '1h',
-            StorageGCWatermark: `99`,
-            StorageMax: '350GB',
-          },
-        },
-      },
-    });
-    // await ipfsd.init();
-    // await ipfsd.start();
-
-    ipfsNode = ipfsd.api;
-    await ipfsNode.id();
-    //* Create local folder for MFS
-    try {
-      await ipfsNode.files.mkdir('/');
-      console.log('Congrats! Directory is created');
-    } catch (er) {
-      console.log('Local directory already created');
-    }
-  } catch (err) {
-    console.log(err);
-    log.warn(err);
+    await ipfsNode.files.mkdir('/');
+    console.log('Congrats! Directory is created');
+  } catch (er) {
+    console.log('Local directory already created');
   }
 
   mainWindow = new BrowserWindow({
@@ -143,7 +113,6 @@ const createWindow = async () => {
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true,
     },
   });
 
@@ -163,8 +132,7 @@ const createWindow = async () => {
   });
 
   mainWindow.on('closed', async () => {
-    await ipfsd.stop();
-    await server.stop();
+    await stopNode();
     mainWindow.destroy();
   });
 
@@ -202,6 +170,7 @@ const getAllFiles = function (dirPath: string, _arrayOfFiles: Array<string>) {
 const pinByHash = async (hashToPin: string) => {
   const url = `https://api.pinata.cloud/pinning/pinByHash`;
   const body = {
+    name: 'emils-wack',
     hashToPin,
     hostNodes: [
       '/ip4/hostNode1ExternalIP/tcp/4001/ipfs/hostNode1PeerId',
@@ -326,23 +295,16 @@ ipcMain.on('mfs-delete', async (event, _path, cid) => {
 app.on('window-all-closed', async () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed
-  await ipfsNode.stop();
-  await ipfsd.stop();
-  await server.stop();
-
+  await stopNode();
   app.quit();
 });
 
 app.on('before-quit', async (event) => {
-  await ipfsNode.stop();
-  await ipfsd.stop();
-  await server.stop();
+  await stopNode();
 });
 
 app.on('will-quit', async (event) => {
-  await ipfsNode.stop();
-  await ipfsd.stop();
-  await server.stop();
+  await stopNode();
 });
 
 app
